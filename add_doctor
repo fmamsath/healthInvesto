@@ -1,0 +1,46 @@
+<?php
+session_start();
+
+// Include database configuration
+include_once("db_config.php");
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $doctor_name = $_POST['doctor_name'];
+    $specialization_id = $_POST['specialization_id'];
+    $hospital_id = $_POST['hospital_id'];
+    $schedule_date = $_POST['schedule_date'];
+
+    // Begin a transaction
+    $conn->begin_transaction();
+
+    try {
+        // Insert into schedules table
+        $stmt_schedule = $conn->prepare("INSERT INTO schedules (hospital_id, specialization_id, schedule_date) VALUES (?, ?, ?)");
+        $stmt_schedule->bind_param("iis", $hospital_id, $specialization_id, $schedule_date);
+        $stmt_schedule->execute();
+        $schedule_id = $conn->insert_id;
+
+        // Insert into doctors table
+        $stmt_doctor = $conn->prepare("INSERT INTO doctors (doctor_name, specialization_id, hospital_id, schedule_id) VALUES (?, ?, ?, ?)");
+        $stmt_doctor->bind_param("siii", $doctor_name, $specialization_id, $hospital_id, $schedule_id);
+        $stmt_doctor->execute();
+
+        // Commit the transaction
+        $conn->commit();
+        
+        echo "New record created successfully in both doctors and schedules table";
+    } catch (Exception $e) {
+        // Rollback the transaction if an error occurs
+        $conn->rollback();
+        echo "Error: " . $e->getMessage();
+        echo "MySQL error: " . mysqli_error($conn);
+    }
+
+    // Close prepared statements
+    $stmt_schedule->close();
+    $stmt_doctor->close();
+}
+
+// Close database connection
+$conn->close();
+?>
